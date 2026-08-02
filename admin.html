@@ -1,0 +1,203 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Admin Dashboard | Mr. Amr Tannash</title>
+    <!-- Font Awesome & Google Fonts -->
+    <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.0/css/all.min.css">
+    <link href="https://fonts.googleapis.com/css2?family=Poppins:wght@300;400;600;700&display=swap" rel="stylesheet">
+    
+    <style>
+        :root {
+            --primary-color: #00f2fe;
+            --secondary-color: #4facfe;
+            --dark-bg: #0b0f19;
+            --card-bg: #161c2e;
+            --white: #ffffff;
+            --success: #10b981;
+            --warning: #f59e0b;
+        }
+
+        * { margin: 0; padding: 0; box-sizing: border-box; font-family: 'Poppins', sans-serif; }
+        body { background-color: var(--dark-bg); color: var(--white); padding: 40px 20px; }
+        .container { max-width: 1000px; margin: auto; }
+
+        header {
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+            border-bottom: 1px solid rgba(255,255,255,0.1);
+            padding-bottom: 20px;
+            margin-bottom: 30px;
+        }
+
+        h1 span { color: var(--primary-color); }
+
+        .stats-box {
+            display: grid;
+            grid-template-columns: repeat(auto-fit, minmax(200px, 1fr));
+            gap: 20px;
+            margin-bottom: 30px;
+        }
+
+        .stat-card {
+            background: var(--card-bg);
+            padding: 20px;
+            border-radius: 12px;
+            border: 1px solid rgba(255,255,255,0.05);
+            text-align: center;
+        }
+
+        .stat-card h3 { font-size: 28px; color: var(--primary-color); }
+        .stat-card p { color: #94a3b8; font-size: 14px; }
+
+        /* Student Table */
+        .table-card {
+            background: var(--card-bg);
+            border-radius: 16px;
+            padding: 25px;
+            border: 1px solid rgba(255,255,255,0.05);
+            box-shadow: 0 10px 30px rgba(0,0,0,0.3);
+        }
+
+        table {
+            width: 100%;
+            border-collapse: collapse;
+            margin-top: 15px;
+        }
+
+        th, td {
+            text-align: left;
+            padding: 14px;
+            border-bottom: 1px solid rgba(255,255,255,0.05);
+            font-size: 15px;
+        }
+
+        th { color: var(--primary-color); font-weight: 600; }
+
+        .badge {
+            padding: 4px 12px;
+            border-radius: 20px;
+            font-size: 12px;
+            font-weight: 600;
+        }
+
+        .badge-pending { background: rgba(245, 158, 11, 0.15); color: var(--warning); border: 1px solid var(--warning); }
+        .badge-approved { background: rgba(16, 185, 129, 0.15); color: var(--success); border: 1px solid var(--success); }
+
+        .btn-approve {
+            background: var(--success);
+            color: #000;
+            border: none;
+            padding: 6px 16px;
+            border-radius: 6px;
+            font-weight: 600;
+            cursor: pointer;
+            transition: 0.2s;
+        }
+
+        .btn-approve:hover { opacity: 0.9; transform: scale(1.05); }
+    </style>
+</head>
+<body>
+
+    <div class="container">
+        <header>
+            <h1><i class="fa-solid fa-user-shield"></i> Mr. Amr's <span>Dashboard</span></h1>
+            <a href="index.html" style="color: var(--primary-color); text-decoration: none;"><i class="fa-solid fa-globe"></i> View Website</a>
+        </header>
+
+        <!-- Registered Students Table -->
+        <div class="table-card">
+            <h2>Registered Students List</h2>
+            <table>
+                <thead>
+                    <tr>
+                        <th>Student Name</th>
+                        <th>Phone Number</th>
+                        <th>Status</th>
+                        <th>Action</th>
+                    </tr>
+                </thead>
+                <tbody id="studentsTableBody">
+                    <tr>
+                        <td colspan="4" style="text-align: center; color: #94a3b8;">Loading students list...</td>
+                    </tr>
+                </tbody>
+            </table>
+        </div>
+    </div>
+
+    <!-- FIREBASE SCRIPT -->
+    <script type="module">
+        import { initializeApp } from "https://www.gstatic.com/firebasejs/10.8.0/firebase-app.js";
+        import { getFirestore, collection, onSnapshot, doc, updateDoc } from "https://www.gstatic.com/firebasejs/10.8.0/firebase-firestore.js";
+
+        // Same Firebase Config
+        const firebaseConfig = {
+            apiKey: "AIzaSyAuvKaJTzz-DG7nC1Yc4PPKrEGs3Lk3PtA",
+            authDomain: "amrtanashscience.firebaseapp.com",
+            databaseURL: "https://amrtanashscience-default-rtdb.firebaseio.com",
+            projectId: "amrtanashscience",
+            storageBucket: "amrtanashscience.firebasestorage.app",
+            messagingSenderId: "561187270299",
+            appId: "1:561187270299:web:1ff65d6003133204ad603e",
+            measurementId: "G-WKZ5RVDW19"
+        };
+
+        const app = initializeApp(firebaseConfig);
+        const db = getFirestore(app);
+
+        const tableBody = document.getElementById('studentsTableBody');
+
+        // Fetch students in Realtime
+        onSnapshot(collection(db, "students"), (snapshot) => {
+            tableBody.innerHTML = '';
+
+            if (snapshot.empty) {
+                tableBody.innerHTML = `<tr><td colspan="4" style="text-align: center;">No registered students yet.</td></tr>`;
+                return;
+            }
+
+            snapshot.forEach((studentDoc) => {
+                const student = studentDoc.data();
+                const id = studentDoc.id;
+
+                const isApproved = student.status === 'approved';
+                
+                const row = document.createElement('tr');
+                row.innerHTML = `
+                    <td><strong>${student.name}</strong></td>
+                    <td>${student.phone}</td>
+                    <td>
+                        <span class="badge ${isApproved ? 'badge-approved' : 'badge-pending'}">
+                            ${isApproved ? 'Approved' : 'Pending'}
+                        </span>
+                    </td>
+                    <td>
+                        ${isApproved 
+                            ? '<span style="color: #94a3b8; font-size: 13px;">✅ Access Granted</span>' 
+                            : `<button class="btn-approve" onclick="approveStudent('${id}')"><i class="fa-solid fa-check"></i> Approve</button>`
+                        }
+                    </td>
+                `;
+                tableBody.appendChild(row);
+            });
+        });
+
+        // Function to Approve Student
+        window.approveStudent = async (studentId) => {
+            try {
+                const studentRef = doc(db, "students", studentId);
+                await updateDoc(studentRef, {
+                    status: "approved"
+                });
+                alert("Student approved successfully!");
+            } catch (error) {
+                alert("Error approving student: " + error.message);
+            }
+        };
+    </script>
+</body>
+</html>
